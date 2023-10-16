@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 import 'dart:io' as io;
+import 'dart:convert';
 
 import 'package:http/http.dart';
 import 'package:path/path.dart' as path;
@@ -22,13 +23,14 @@ class ChromeDriverInstaller {
 
   String chromeDriverVersion;
 
+  String? downloadUrl;
+
   io.File? driverDownload;
 
-  String get downloadUrl =>
-      '$chromeDriverUrl$chromeDriverVersion/${driverName()}';
+  String get installationPath => path.join(
+      driverDir.path, 'chromedriver-${platformName()}', 'chromedriver');
 
-  io.File get installation =>
-      io.File(path.join(driverDir.path, 'chromedriver'));
+  io.File get installation => io.File(installationPath);
 
   bool get isInstalled => installation.existsSync();
 
@@ -93,6 +95,7 @@ class ChromeDriverInstaller {
     }
 
     try {
+      downloadUrl = await _downloadUrl();
       driverDownload = await _downloadDriver();
     } catch (e) {
       throw Exception(
@@ -149,6 +152,29 @@ class ChromeDriverInstaller {
     return chromeExecutableDir.path;
   }
 
+  Future<String?> _downloadUrl() async {
+    final Response versionsWithDownloads = await client.get(
+      Uri.parse(
+          'https://googlechromelabs.github.io/chrome-for-testing/known-good-versions-with-downloads.json'),
+    );
+
+    var versions = jsonDecode(versionsWithDownloads.body)['versions'];
+    for (var version in versions) {
+      if (version['version'] == chromeDriverVersion) {
+        for (var download in version['downloads']['chromedriver']) {
+          if (download['platform'] == platformName()) {
+            return download['url'];
+          }
+        }
+        break;
+      }
+    }
+
+    throw Exception(
+      'Failed to find download URL for Chrome driver with version ${chromeDriverVersion}.\n',
+    );
+  }
+
   Future<io.File> _downloadDriver() async {
     if (driverDir.existsSync()) {
       driverDir.deleteSync(recursive: true);
@@ -160,7 +186,7 @@ class ChromeDriverInstaller {
 
     final StreamedResponse download = await client.send(Request(
       'GET',
-      Uri.parse(downloadUrl),
+      Uri.parse(downloadUrl!),
     ));
 
     final io.File downloadedFile =
@@ -187,23 +213,23 @@ class ChromeDriverInstaller {
   }
 
   Future<void> runDriver() async {
-    await io.Process.run('chromedriver/chromedriver', <String>['--port=4444']);
+    await io.Process.run(installationPath, <String>['--port=4444']);
   }
 
-  /// Driver name for operating system.
-  ///
-  /// Chrome provide 3 different drivers per version. As an example, see:
-  /// https://chromedriver.storage.googleapis.com/index.html?path=76.0.3809.126/
-  static String driverName() {
+  static String platformName() {
     if (io.Platform.isMacOS) {
-      return 'chromedriver_mac64.zip';
+      return 'mac64';
     } else if (io.Platform.isLinux) {
-      return 'chromedriver_linux64.zip';
+      return 'linux64';
     } else if (io.Platform.isWindows) {
-      return 'chromedriver_win32.zip';
+      return 'win32';
     } else {
       throw UnimplementedError('Automated testing not supported on this OS.'
           'Platform name: ${io.Platform.operatingSystem}');
     }
+  }
+
+  static String driverName() {
+    return 'chromedriver_${platformName()}.zip';
   }
 }
