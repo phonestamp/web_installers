@@ -18,7 +18,10 @@ class ChromeDriverInstaller {
   /// Installation directory for Chrome Driver.
   final io.Directory driverDir = io.Directory('chromedriver');
 
-  static const String chromeDriverUrl =
+  static const String versionsWithDowloadsUrl =
+      'https://googlechromelabs.github.io/chrome-for-testing/known-good-versions-with-downloads.json';
+
+  static const String oldChromeDriverUrl =
       'https://chromedriver.storage.googleapis.com/';
 
   String chromeDriverVersion;
@@ -154,8 +157,7 @@ class ChromeDriverInstaller {
 
   Future<String?> _downloadUrl() async {
     final Response versionsWithDownloads = await client.get(
-      Uri.parse(
-          'https://googlechromelabs.github.io/chrome-for-testing/known-good-versions-with-downloads.json'),
+      Uri.parse(versionsWithDowloadsUrl),
     );
 
     var versions = jsonDecode(versionsWithDownloads.body)['versions'];
@@ -170,9 +172,8 @@ class ChromeDriverInstaller {
       }
     }
 
-    throw Exception(
-      'Failed to find download URL for Chrome driver with version ${chromeDriverVersion}.\n',
-    );
+    // Old download url from https://chromedriver.chromium.org/downloads
+    return '$oldChromeDriverUrl$chromeDriverVersion/${driverName()}';
   }
 
   Future<io.File> _downloadDriver() async {
