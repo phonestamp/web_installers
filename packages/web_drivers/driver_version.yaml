@@ -2,6 +2,7 @@
 ## Map for driver versions to use for each browser version.
 ## See: https://chromedriver.chromium.org/downloads
 chrome:
+  130: '130.0.6723.58'
   129: '129.0.6668.70'
   128: '128.0.6613.84'
   125: '125.0.6422.60'
